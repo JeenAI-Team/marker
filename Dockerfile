@@ -1,12 +1,13 @@
 FROM python:3.11-slim
 
-# Install only essential build tools and libraries for lxml
+# Install only essential build tools and libraries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         curl \
         libxml2-dev \
         libxslt1-dev \
+        libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -21,11 +22,15 @@ WORKDIR /app
 # Copy Poetry files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies
-RUN poetry install --no-interaction --no-ansi
+# Install dependencies (server needs dev dependencies for FastAPI/uvicorn)
+# Use --no-root first to install deps, then install package after copying code
+RUN poetry install --with dev --no-interaction --no-ansi --no-root
 
 # Copy application code
 COPY . .
+
+# Install the package itself (deps already installed)
+RUN poetry install --with dev --no-interaction --no-ansi
 
 # Create uploads directory
 RUN mkdir -p ./uploads
