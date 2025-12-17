@@ -4,10 +4,18 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry
+RUN pip install --upgrade pip && pip install poetry
 
 # Configure Poetry: Don't create a virtual environment, install dependencies system-wide
 RUN poetry config virtualenvs.create false
@@ -18,11 +26,18 @@ WORKDIR /app
 # Copy Poetry files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies
-RUN poetry install --with dev --no-interaction --no-ansi
+# Install dependencies (use --no-root to avoid installing the package itself until we copy all files)
+RUN if [ -f poetry.lock ]; then \
+        poetry install --with dev --no-interaction --no-ansi --no-root; \
+    else \
+        poetry lock --no-update && poetry install --with dev --no-interaction --no-ansi --no-root; \
+    fi
 
 # Copy the rest of the application
 COPY . .
+
+# Install the package itself (dependencies are already installed, so this is fast)
+RUN poetry install --with dev --no-interaction --no-ansi
 
 # Create uploads directory
 RUN mkdir -p ./uploads
