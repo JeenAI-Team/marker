@@ -1,34 +1,25 @@
 FROM python:3.11-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    libxml2-dev \
-    libxslt1-dev \
-    libffi-dev \
-    libcairo2 \
-    libcairo2-dev \
-    libpango-1.0-0 \
-    libpango1.0-dev \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libgdk-pixbuf2.0-dev \
-    shared-mime-info \
-    pkg-config \
-    || (apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies in stages for better error handling
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        pkg-config \
+    && apt-get install -y --no-install-recommends \
         libxml2-dev \
         libxslt1-dev \
         libffi-dev \
+    && apt-get install -y --no-install-recommends \
         libcairo2 \
         libcairo2-dev \
         libpango-1.0-0 \
         libpango1.0-dev \
         libpangocairo-1.0-0 \
-        pkg-config \
-        shared-mime-info) \
+    && apt-get install -y --no-install-recommends \
+        libgdk-pixbuf-2.0-0 \
+        libgdk-pixbuf-2.0-dev \
+        shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
