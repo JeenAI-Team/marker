@@ -1,0 +1,75 @@
+name: Build and Push Docker Image to Azure
+
+on:
+  push:
+    branches:
+      - main
+      - add-auto-build
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AZURE_REGISTRY }}
+          username: ${{ secrets.AZURE_USERNAME }}
+          password: ${{ secrets.AZURE_PASSWORD }}
+
+      - name: Generate daily tag
+        id: tag
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          BRANCH=$(echo "${GITHUB_REF##*/}")
+          COMMIT_HASH=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          COUNT=1
+          while docker pull ${{ secrets.AZURE_REGISTRY }}/marker-parser:$BRANCH-$DATE-$COUNT-$COMMIT_HASH 2>/dev/null; do
+            COUNT=$((COUNT + 1))
+          done
+          TAG="$BRANCH-$DATE-$COUNT-$COMMIT_HASH"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ secrets.AZURE_REGISTRY }}/marker-parser:${{ steps.tag.outputs.tag }}
+      
+      - name: Trigger charts repo deploy (update tag only)
+        if: success()
+        env:
+          TOKEN: ${{ secrets.CI_REPO_PAT }}             # Classic PAT with scopes: repo, workflow (SSO authorized if org)
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}       # e.g. add-auto-build-2025-10-26-4
+        run: |
+          set -euo pipefail
+          [ -n "${IMAGE_TAG:-}" ] || { echo "IMAGE_TAG empty"; exit 1; }
+
+          # backend is the chart; marker-parser is the subservice key in your backend values.yaml
+          SERVICE="backend"
+          SERVICE_KEY="marker-parser"
+
+          jq -n \
+            --arg svc "$SERVICE" \
+            --arg key "$SERVICE_KEY" \
+            --arg tag "$IMAGE_TAG" \
+            '{event_type:"image_tag_published",
+              client_payload:{service:$svc, service_key:$key, tag:$tag}}' \
+          | tee /dev/stderr \
+          | curl -sS -X POST https://api.github.com/repos/JeenAI-Team/jeen-charts/dispatches \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -d @-
+
