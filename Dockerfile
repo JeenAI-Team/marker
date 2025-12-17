@@ -1,10 +1,12 @@
 FROM python:3.11-slim
 
-# Install only essential build tools
+# Install only essential build tools and libraries for lxml
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        libxml2-dev \
+        libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -20,7 +22,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 
 # Install dependencies
-RUN poetry install
+RUN poetry install --with dev --no-interaction --no-ansi
 
 # Copy application code
 COPY . .
