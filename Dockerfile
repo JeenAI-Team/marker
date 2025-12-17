@@ -8,10 +8,14 @@ RUN apt-get update && apt-get install -y \
     libxslt1-dev \
     libffi-dev \
     libcairo2 \
+    libcairo2-dev \
     libpango-1.0-0 \
+    libpango1.0-dev \
     libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf2.0-dev \
     shared-mime-info \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
