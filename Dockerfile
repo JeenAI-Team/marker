@@ -1,31 +1,16 @@
 FROM python:3.11-slim
 
-# Install system dependencies in stages for better error handling
+# Install only essential build tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         curl \
-        pkg-config \
-    && apt-get install -y --no-install-recommends \
-        libxml2-dev \
-        libxslt1-dev \
-        libffi-dev \
-    && apt-get install -y --no-install-recommends \
-        libcairo2 \
-        libcairo2-dev \
-        libpango-1.0-0 \
-        libpango1.0-dev \
-        libpangocairo-1.0-0 \
-    && apt-get install -y --no-install-recommends \
-        libgdk-pixbuf-2.0-0 \
-        libgdk-pixbuf-2.0-dev \
-        shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install --upgrade pip && pip install poetry
+RUN pip install --no-cache-dir poetry
 
-# Configure Poetry: Don't create a virtual environment, install dependencies system-wide
+# Configure Poetry
 RUN poetry config virtualenvs.create false
 
 # Set working directory
@@ -34,25 +19,17 @@ WORKDIR /app
 # Copy Poetry files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies (use --no-root to avoid installing the package itself until we copy all files)
-RUN if [ -f poetry.lock ]; then \
-        poetry install --with dev --no-interaction --no-ansi --no-root; \
-    else \
-        poetry lock --no-update && poetry install --with dev --no-interaction --no-ansi --no-root; \
-    fi
-
-# Copy the rest of the application
-COPY . .
-
-# Install the package itself (dependencies are already installed, so this is fast)
+# Install dependencies
 RUN poetry install --with dev --no-interaction --no-ansi
+
+# Copy application code
+COPY . .
 
 # Create uploads directory
 RUN mkdir -p ./uploads
 
-# Expose the port the server runs on
+# Expose port
 EXPOSE 8000
 
-# Run the server
+# Run server
 CMD ["poetry", "run", "python", "marker_server.py"]
-
