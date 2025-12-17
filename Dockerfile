@@ -12,10 +12,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpango1.0-dev \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
+    libgdk-pixbuf2.0-0 \
     libgdk-pixbuf2.0-dev \
     shared-mime-info \
     pkg-config \
+    || (apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        libxml2-dev \
+        libxslt1-dev \
+        libffi-dev \
+        libcairo2 \
+        libcairo2-dev \
+        libpango-1.0-0 \
+        libpango1.0-dev \
+        libpangocairo-1.0-0 \
+        pkg-config \
+        shared-mime-info) \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
